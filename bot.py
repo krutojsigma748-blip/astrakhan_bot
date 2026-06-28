@@ -1,7 +1,9 @@
 import telebot
 import time
 import feedparser
+import threading
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+from urllib.parse import unquote
 
 TOKEN = "8951072407:AAHP7oUUcfkDJ44SoDWkUgKyUwanBQocmuk"
 ADMIN_ID = 7419211122
@@ -12,27 +14,47 @@ bot = telebot.TeleBot(TOKEN)
 user_names = {}
 posted_news = set()
 
-# RSS ленты астраханских новостей
 RSS_FEEDS = [
-    "https://astrakhan.ru/rss/",
-    "https://astravolga.ru/feed/",
     "https://punkt-a.info/rss.xml",
+    "https://astravolga.ru/feed/",
 ]
+
+KEYWORDS = ["астрахань", "астраханск", "астраханцы", "волга", "астраханского", "астраханской"]
+
+def is_astrakhan_news(title, summary=""):
+    text = (title + " " + summary).lower()
+    return any(word in text for word in KEYWORDS)
 
 def check_news():
     while True:
         for feed_url in RSS_FEEDS:
             try:
                 feed = feedparser.parse(feed_url)
-                for entry in feed.entries[:3]:
-                    if entry.link not in posted_news:
-                        posted_news.add(entry.link)
-                        text = f"📰 *{entry.title}*\n\n🔗 {entry.link}"
-                        bot.send_message(CHANNEL_ID, text, parse_mode="Markdown")
-                        time.sleep(2)
+                for entry in feed.entries[:5]:
+                    title = entry.get("title", "")
+                    link = unquote(entry.get("link", ""))
+                    summary = entry.get("summary", "")
+
+                    if link in posted_news:
+                        continue
+
+                    if not is_astrakhan_news(title, summary):
+                        continue
+
+                    posted_news.add(link)
+
+                    text = (
+                        f"🗞 *{title}*\n\n"
+                        f"📍 Астрахань\n\n"
+                        f"🔗 [Читать полностью]({link})"
+                    )
+                    bot.send_message(CHANNEL_ID, text, parse_mode="Markdown")
+                    time.sleep(3)
+
             except Exception as e:
                 print(f"Ошибка RSS: {e}")
-        time.sleep(1800)  # Проверка каждые 30 минут
+
+        time.sleep(1800)
 
 def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -109,7 +131,6 @@ def forward_to_admin(message):
     except Exception as e:
         print(f"Ошибка: {e}")
 
-import threading
 news_thread = threading.Thread(target=check_news)
 news_thread.daemon = True
 news_thread.start()
