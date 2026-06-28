@@ -1,11 +1,10 @@
-
 import telebot
 import time
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 TOKEN = "8951072407:AAHP7oUUcfkDJ44SoDWkUgKyUwanBQocmuk"
 ADMIN_ID = 7419211122
-CHANNEL = "https://t.me/astrakhan_news"
+CHANNEL = "https://t.me/novosti30reg"
 
 bot = telebot.TeleBot(TOKEN)
 user_names = {}
@@ -69,7 +68,6 @@ def save_name(message):
 
 @bot.message_handler(func=lambda m: m.text == "📩 Написать в редакцию")
 def ask_message(message):
-    name = user_names.get(message.chat.id, "Аноним")
     msg = bot.send_message(message.chat.id,
         "✍️ Напиши своё сообщение и я передам его в редакцию:")
     bot.register_next_step_handler(msg, forward_to_admin)
