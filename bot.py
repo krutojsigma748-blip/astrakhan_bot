@@ -1,49 +1,13 @@
 import telebot
 import time
-import feedparser
-import threading
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
-from urllib.parse import unquote
 
 TOKEN = "8951072407:AAHP7oUUcfkDJ44SoDWkUgKyUwanBQocmuk"
 ADMIN_ID = 7419211122
-CHANNEL_ID = -1004414503790
 CHANNEL = "https://t.me/novosti30reg"
 
 bot = telebot.TeleBot(TOKEN)
 user_names = {}
-posted_news = set()
-
-RSS_FEEDS = [
-    "https://astrakhan.ru/feed/",
-    "https://astrakhanfm.ru/feed/",
-    "https://kavkaz-uzel.eu/rss/tags/1811",
-]
-
-KEYWORDS = ["астрахань", "астраханск", "астраханцы", "волга", "астраханского", "астраханской"]
-
-def is_astrakhan_news(title, summary=""):
-    text = (title + " " + summary).lower()
-    return any(word in text for word in KEYWORDS)
-
-def fetch_and_post():
-    found = 0
-    for feed_url in RSS_FEEDS:
-        try:
-            feed = feedparser.parse(feed_url)
-            bot.send_message(ADMIN_ID, f"📡 {feed_url}\nНайдено записей: {len(feed.entries)}")
-            for entry in feed.entries[:3]:
-                title = entry.get("title", "")
-                link = unquote(entry.get("link", ""))
-                bot.send_message(ADMIN_ID, f"Заголовок: {title}")
-        except Exception as e:
-            bot.send_message(ADMIN_ID, f"Ошибка: {e}")
-    return found
-
-def check_news():
-    while True:
-        fetch_and_post()
-        time.sleep(1800)
 
 def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -62,17 +26,6 @@ def start(message):
         f"Выбери что тебя интересует 👇",
         parse_mode="Markdown",
         reply_markup=main_menu())
-
-@bot.message_handler(commands=['checknews'])
-def checknews(message):
-    if message.chat.id != ADMIN_ID:
-        return
-    bot.send_message(ADMIN_ID, "🔍 Ищу новости...")
-    found = fetch_and_post()
-    if found > 0:
-        bot.send_message(ADMIN_ID, f"✅ Опубликовано новостей: {found}")
-    else:
-        bot.send_message(ADMIN_ID, "😔 Новых новостей про Астрахань не найдено")
 
 @bot.message_handler(func=lambda m: m.text == "📰 Последние новости")
 def news(message):
@@ -120,10 +73,6 @@ def forward_to_admin(message):
             reply_markup=main_menu())
     except Exception as e:
         print(f"Ошибка: {e}")
-
-news_thread = threading.Thread(target=check_news)
-news_thread.daemon = True
-news_thread.start()
 
 print("✅ Бот запущен!")
 while True:
