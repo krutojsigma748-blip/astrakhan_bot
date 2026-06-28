@@ -1,13 +1,38 @@
 import telebot
 import time
+import feedparser
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 TOKEN = "8951072407:AAHP7oUUcfkDJ44SoDWkUgKyUwanBQocmuk"
 ADMIN_ID = 7419211122
+CHANNEL_ID = -1004414503790
 CHANNEL = "https://t.me/novosti30reg"
 
 bot = telebot.TeleBot(TOKEN)
 user_names = {}
+posted_news = set()
+
+# RSS ленты астраханских новостей
+RSS_FEEDS = [
+    "https://astrakhan.ru/rss/",
+    "https://astravolga.ru/feed/",
+    "https://punkt-a.info/rss.xml",
+]
+
+def check_news():
+    while True:
+        for feed_url in RSS_FEEDS:
+            try:
+                feed = feedparser.parse(feed_url)
+                for entry in feed.entries[:3]:
+                    if entry.link not in posted_news:
+                        posted_news.add(entry.link)
+                        text = f"📰 *{entry.title}*\n\n🔗 {entry.link}"
+                        bot.send_message(CHANNEL_ID, text, parse_mode="Markdown")
+                        time.sleep(2)
+            except Exception as e:
+                print(f"Ошибка RSS: {e}")
+        time.sleep(1800)  # Проверка каждые 30 минут
 
 def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -83,6 +108,11 @@ def forward_to_admin(message):
             reply_markup=main_menu())
     except Exception as e:
         print(f"Ошибка: {e}")
+
+import threading
+news_thread = threading.Thread(target=check_news)
+news_thread.daemon = True
+news_thread.start()
 
 print("✅ Бот запущен!")
 while True:
