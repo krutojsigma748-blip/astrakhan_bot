@@ -15,8 +15,9 @@ user_names = {}
 posted_news = set()
 
 RSS_FEEDS = [
-    "https://punkt-a.info/rss.xml",
-    "https://astravolga.ru/feed/",
+    "https://astrakhan.ru/feed/",
+    "https://astrakhanfm.ru/feed/",
+    "https://kavkaz-uzel.eu/rss/tags/1811",
 ]
 
 KEYWORDS = ["астрахань", "астраханск", "астраханцы", "волга", "астраханского", "астраханской"]
