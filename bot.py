@@ -1,19 +1,90 @@
+
 import telebot
 import time
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 TOKEN = "8951072407:AAHP7oUUcfkDJ44SoDWkUgKyUwanBQocmuk"
 ADMIN_ID = 7419211122
+CHANNEL = "https://t.me/astrakhan_news"
 
 bot = telebot.TeleBot(TOKEN)
+user_names = {}
 
-@bot.message_handler(func=lambda m: True)
+def main_menu():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(KeyboardButton("📰 Последние новости"))
+    markup.add(KeyboardButton("📢 О канале"))
+    markup.add(KeyboardButton("✏️ Указать имя"))
+    markup.add(KeyboardButton("📩 Написать в редакцию"))
+    return markup
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    name = user_names.get(message.chat.id, "друг")
+    bot.send_message(message.chat.id,
+        f"👋 Привет, {name}!\n\n"
+        f"Это бот канала *Астрахань | Новости* 🌊\n\n"
+        f"Здесь ты можешь:\n"
+        f"— Читать последние новости\n"
+        f"— Написать в редакцию\n"
+        f"— Узнать о канале\n\n"
+        f"Выбери что тебя интересует 👇",
+        parse_mode="Markdown",
+        reply_markup=main_menu())
+
+@bot.message_handler(func=lambda m: m.text == "📰 Последние новости")
+def news(message):
+    bot.send_message(message.chat.id,
+        f"📰 Последние новости Астрахани:\n\n"
+        f"Читай всё актуальное на нашем канале 👇\n\n"
+        f"{CHANNEL}",
+        reply_markup=main_menu())
+
+@bot.message_handler(func=lambda m: m.text == "📢 О канале")
+def about(message):
+    bot.send_message(message.chat.id,
+        f"📢 *Астрахань | Новости*\n\n"
+        f"Главный новостной канал Астрахани.\n\n"
+        f"Публикуем:\n"
+        f"🚨 Происшествия и ЧП\n"
+        f"🏙 Городские новости\n"
+        f"🌤 Погода и транспорт\n"
+        f"🏛 Власть и экономика\n"
+        f"🎉 Афиша и события\n\n"
+        f"Подписывайся: {CHANNEL}",
+        parse_mode="Markdown",
+        reply_markup=main_menu())
+
+@bot.message_handler(func=lambda m: m.text == "✏️ Указать имя")
+def ask_name(message):
+    msg = bot.send_message(message.chat.id,
+        "Напиши своё имя и я буду обращаться к тебе по имени 😊")
+    bot.register_next_step_handler(msg, save_name)
+
+def save_name(message):
+    user_names[message.chat.id] = message.text
+    bot.send_message(message.chat.id,
+        f"✅ Отлично, {message.text}! Теперь я знаю как тебя зовут 👋",
+        reply_markup=main_menu())
+
+@bot.message_handler(func=lambda m: m.text == "📩 Написать в редакцию")
+def ask_message(message):
+    name = user_names.get(message.chat.id, "Аноним")
+    msg = bot.send_message(message.chat.id,
+        "✍️ Напиши своё сообщение и я передам его в редакцию:")
+    bot.register_next_step_handler(msg, forward_to_admin)
+
 def forward_to_admin(message):
-    if message.chat.id != ADMIN_ID:
-        try:
-            bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
-            bot.send_message(message.chat.id, "✅ Ваше сообщение получено! Спасибо.")
-        except Exception as e:
-            print(f"Ошибка пересылки: {e}")
+    name = user_names.get(message.chat.id, "Аноним")
+    try:
+        bot.send_message(ADMIN_ID,
+            f"📩 Новое сообщение от {name} (@{message.from_user.username}):\n\n"
+            f"{message.text}")
+        bot.send_message(message.chat.id,
+            "✅ Сообщение отправлено в редакцию! Спасибо.",
+            reply_markup=main_menu())
+    except Exception as e:
+        print(f"Ошибка: {e}")
 
 print("✅ Бот запущен!")
 while True:
