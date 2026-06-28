@@ -25,35 +25,37 @@ def is_astrakhan_news(title, summary=""):
     text = (title + " " + summary).lower()
     return any(word in text for word in KEYWORDS)
 
+def fetch_and_post():
+    found = 0
+    for feed_url in RSS_FEEDS:
+        try:
+            feed = feedparser.parse(feed_url)
+            for entry in feed.entries[:10]:
+                title = entry.get("title", "")
+                link = unquote(entry.get("link", ""))
+                summary = entry.get("summary", "")
+
+                if link in posted_news:
+                    continue
+                if not is_astrakhan_news(title, summary):
+                    continue
+
+                posted_news.add(link)
+                text = (
+                    f"🗞 *{title}*\n\n"
+                    f"📍 Астрахань\n\n"
+                    f"🔗 [Читать полностью]({link})"
+                )
+                bot.send_message(CHANNEL_ID, text, parse_mode="Markdown")
+                found += 1
+                time.sleep(3)
+        except Exception as e:
+            print(f"Ошибка RSS: {e}")
+    return found
+
 def check_news():
     while True:
-        for feed_url in RSS_FEEDS:
-            try:
-                feed = feedparser.parse(feed_url)
-                for entry in feed.entries[:5]:
-                    title = entry.get("title", "")
-                    link = unquote(entry.get("link", ""))
-                    summary = entry.get("summary", "")
-
-                    if link in posted_news:
-                        continue
-
-                    if not is_astrakhan_news(title, summary):
-                        continue
-
-                    posted_news.add(link)
-
-                    text = (
-                        f"🗞 *{title}*\n\n"
-                        f"📍 Астрахань\n\n"
-                        f"🔗 [Читать полностью]({link})"
-                    )
-                    bot.send_message(CHANNEL_ID, text, parse_mode="Markdown")
-                    time.sleep(3)
-
-            except Exception as e:
-                print(f"Ошибка RSS: {e}")
-
+        fetch_and_post()
         time.sleep(1800)
 
 def main_menu():
@@ -70,27 +72,31 @@ def start(message):
     bot.send_message(message.chat.id,
         f"👋 Привет, {name}!\n\n"
         f"Это бот канала *Астрахань | Новости* 🌊\n\n"
-        f"Здесь ты можешь:\n"
-        f"— Читать последние новости\n"
-        f"— Написать в редакцию\n"
-        f"— Узнать о канале\n\n"
         f"Выбери что тебя интересует 👇",
         parse_mode="Markdown",
         reply_markup=main_menu())
 
+@bot.message_handler(commands=['checknews'])
+def checknews(message):
+    if message.chat.id != ADMIN_ID:
+        return
+    bot.send_message(ADMIN_ID, "🔍 Ищу новости...")
+    found = fetch_and_post()
+    if found > 0:
+        bot.send_message(ADMIN_ID, f"✅ Опубликовано новостей: {found}")
+    else:
+        bot.send_message(ADMIN_ID, "😔 Новых новостей про Астрахань не найдено")
+
 @bot.message_handler(func=lambda m: m.text == "📰 Последние новости")
 def news(message):
     bot.send_message(message.chat.id,
-        f"📰 Последние новости Астрахани:\n\n"
-        f"Читай всё актуальное на нашем канале 👇\n\n"
-        f"{CHANNEL}",
+        f"📰 Последние новости:\n\n{CHANNEL}",
         reply_markup=main_menu())
 
 @bot.message_handler(func=lambda m: m.text == "📢 О канале")
 def about(message):
     bot.send_message(message.chat.id,
         f"📢 *Астрахань | Новости*\n\n"
-        f"Главный новостной канал Астрахани.\n\n"
         f"Публикуем:\n"
         f"🚨 Происшествия и ЧП\n"
         f"🏙 Городские новости\n"
@@ -103,30 +109,27 @@ def about(message):
 
 @bot.message_handler(func=lambda m: m.text == "✏️ Указать имя")
 def ask_name(message):
-    msg = bot.send_message(message.chat.id,
-        "Напиши своё имя и я буду обращаться к тебе по имени 😊")
+    msg = bot.send_message(message.chat.id, "Напиши своё имя 😊")
     bot.register_next_step_handler(msg, save_name)
 
 def save_name(message):
     user_names[message.chat.id] = message.text
     bot.send_message(message.chat.id,
-        f"✅ Отлично, {message.text}! Теперь я знаю как тебя зовут 👋",
+        f"✅ Отлично, {message.text}! 👋",
         reply_markup=main_menu())
 
 @bot.message_handler(func=lambda m: m.text == "📩 Написать в редакцию")
 def ask_message(message):
-    msg = bot.send_message(message.chat.id,
-        "✍️ Напиши своё сообщение и я передам его в редакцию:")
+    msg = bot.send_message(message.chat.id, "✍️ Напиши сообщение:")
     bot.register_next_step_handler(msg, forward_to_admin)
 
 def forward_to_admin(message):
     name = user_names.get(message.chat.id, "Аноним")
     try:
         bot.send_message(ADMIN_ID,
-            f"📩 Новое сообщение от {name} (@{message.from_user.username}):\n\n"
-            f"{message.text}")
+            f"📩 От {name} (@{message.from_user.username}):\n\n{message.text}")
         bot.send_message(message.chat.id,
-            "✅ Сообщение отправлено в редакцию! Спасибо.",
+            "✅ Сообщение отправлено! Спасибо.",
             reply_markup=main_menu())
     except Exception as e:
         print(f"Ошибка: {e}")
