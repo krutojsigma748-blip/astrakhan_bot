@@ -30,27 +30,13 @@ def fetch_and_post():
     for feed_url in RSS_FEEDS:
         try:
             feed = feedparser.parse(feed_url)
-            for entry in feed.entries[:10]:
+            bot.send_message(ADMIN_ID, f"📡 {feed_url}\nНайдено записей: {len(feed.entries)}")
+            for entry in feed.entries[:3]:
                 title = entry.get("title", "")
                 link = unquote(entry.get("link", ""))
-                summary = entry.get("summary", "")
-
-                if link in posted_news:
-                    continue
-                if not is_astrakhan_news(title, summary):
-                    continue
-
-                posted_news.add(link)
-                text = (
-                    f"🗞 *{title}*\n\n"
-                    f"📍 Астрахань\n\n"
-                    f"🔗 [Читать полностью]({link})"
-                )
-                bot.send_message(CHANNEL_ID, text, parse_mode="Markdown")
-                found += 1
-                time.sleep(3)
+                bot.send_message(ADMIN_ID, f"Заголовок: {title}")
         except Exception as e:
-            print(f"Ошибка RSS: {e}")
+            bot.send_message(ADMIN_ID, f"Ошибка: {e}")
     return found
 
 def check_news():
